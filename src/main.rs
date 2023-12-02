@@ -9,7 +9,9 @@ use tracing::{error, info};
 
 use serenity::model::application::interaction::{Interaction, InteractionResponseType};
 
-struct Bot;
+struct Bot {
+    discord_guild_id: GuildId,
+}
 
 #[async_trait]
 impl EventHandler for Bot {
@@ -60,12 +62,18 @@ async fn serenity(
     } else {
         return Err(anyhow!("'DISCORD_TOKEN' was not found").into());
     };
+    let guild_id: u64 = if let Some(id) = secret_store.get("DISCORD_GUILD_ID") {
+        let id_res = id.parse::<u64>();
+        id_res.map_err::<anyhow::Error, _>(|_| anyhow!("'DISCORD_GUILD_ID' was not found"))?
+    } else {
+        return Err(anyhow!("'DISCORD_GUILD_ID' was not found").into());
+    };
 
     // Set gateway intents, which decides what events the bot will be notified about
     let intents = GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT;
 
     let client = Client::builder(&token, intents)
-        .event_handler(Bot)
+        .event_handler(Bot { discord_guild_id: GuildId(guild_id) })
         .await
         .expect("Err creating client");
 
